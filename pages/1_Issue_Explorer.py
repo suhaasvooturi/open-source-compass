@@ -13,6 +13,7 @@ from finder.ui_components import (
     render_hero_banner,
     render_issue_card,
     render_score_pill,
+    render_sidebar_nav,
 )
 
 st.set_page_config(
@@ -38,8 +39,6 @@ render_hero_banner(
 
 # Sidebar navigation link
 with st.sidebar:
-    st.page_link("app.py", label="← Back to Main Dashboard", icon="🏠")
-    st.markdown("---")
     st.subheader("Explorer Filters")
 
     # Search keyword
@@ -62,6 +61,9 @@ with st.sidebar:
 
     # View Mode toggle
     view_mode = st.radio("Display View:", ["Card Cards View", "Structured Table View"])
+
+    render_sidebar_nav()
+
 
 # Apply filters
 filtered = list(ranked_issues)

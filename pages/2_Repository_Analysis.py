@@ -6,7 +6,7 @@ import streamlit as st
 
 from finder.contribution_guide import ContributionGuideReader
 from finder.state import init_session_state, load_demo_analysis
-from finder.ui_components import inject_custom_styles, render_hero_banner
+from finder.ui_components import inject_custom_styles, render_hero_banner, render_sidebar_nav
 
 st.set_page_config(
     page_title="Repository Analysis | OpenSource Compass",
@@ -31,10 +31,8 @@ render_hero_banner(
 )
 
 with st.sidebar:
-    st.page_link("app.py", label="← Back to Main Dashboard", icon="🏠")
-    st.page_link("pages/1_Issue_Explorer.py", label="Issue Explorer", icon="🔎")
-    st.page_link("pages/3_Skill_Gap_Analysis.py", label="Skill Gap Analysis", icon="📈")
-    st.page_link("pages/4_Saved_Shortlist.py", label="Saved Shortlist", icon="⭐")
+    render_sidebar_nav()
+
 
 tab_arch, tab_health, tab_guide = st.tabs(["🏗️ Architecture & Stack", "🩺 Health Indicators", "📖 Contribution Guide Reader"])
 

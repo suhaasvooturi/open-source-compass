@@ -34,7 +34,9 @@ from finder.ui_components import (
     inject_custom_styles,
     render_hero_banner,
     render_issue_card,
+    render_sidebar_nav,
 )
+
 
 # Page configuration
 st.set_page_config(
@@ -237,18 +239,7 @@ with st.sidebar:
             run_live_analysis(st.session_state.repo_url, st.session_state.github_token)
             st.rerun()
 
-    # Shortlist quick count
-    shortlist_count = len(st.session_state.shortlist_manager.list_all())
-    st.markdown(f"⭐ **Saved Shortlist:** `{shortlist_count} issues`")
-
-    st.markdown("---")
-    st.caption("🧭 **Navigation Hub**")
-    st.page_link("app.py", label="Dashboard", icon="📊")
-    st.page_link("pages/1_Issue_Explorer.py", label="Issue Explorer", icon="🔎")
-    st.page_link("pages/2_Repository_Analysis.py", label="Repository Analysis", icon="🏛️")
-    st.page_link("pages/3_Skill_Gap_Analysis.py", label="Skill Gap Analysis", icon="📈")
-    st.page_link("pages/4_Saved_Shortlist.py", label="Saved Shortlist", icon="⭐")
-    st.page_link("pages/5_About.py", label="About & Methodology", icon="ℹ️")
+    render_sidebar_nav()
 
 
 # ==========================================

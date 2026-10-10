@@ -297,6 +297,8 @@ def render_issue_card(
         if st.button(save_label, key=f"btn_shortlist_{issue.number}", use_container_width=True):
             if on_save_clicked:
                 on_save_clicked(issue)
+                st.rerun()
+
 
     # Expandable Deep-Dive Section
     with st.expander(f"🔍 Why this matches & Preparation Checklist (Issue #{issue.number})"):
@@ -335,3 +337,19 @@ def render_issue_card(
             st.markdown("#### 📋 Recommended Preparation Steps:")
             for step in issue.preparation_steps:
                 st.markdown(f"- {step}")
+
+
+def render_sidebar_nav() -> None:
+    """Render consistent navigation links and shortlist indicator across all pages."""
+    st.markdown("---")
+    st.caption("🧭 **Navigation Hub**")
+    st.page_link("app.py", label="Dashboard", icon="📊")
+    st.page_link("pages/1_Issue_Explorer.py", label="Issue Explorer", icon="🔎")
+    st.page_link("pages/2_Repository_Analysis.py", label="Repository Analysis", icon="🏛️")
+    st.page_link("pages/3_Skill_Gap_Analysis.py", label="Skill Gap Analysis", icon="📈")
+    shortlist_count = 0
+    if "shortlist_manager" in st.session_state:
+        shortlist_count = len(st.session_state.shortlist_manager.list_all())
+    st.page_link("pages/4_Saved_Shortlist.py", label=f"Saved Shortlist ({shortlist_count})", icon="⭐")
+    st.page_link("pages/5_About.py", label="About & Methodology", icon="ℹ️")
+

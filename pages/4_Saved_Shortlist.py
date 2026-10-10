@@ -5,7 +5,12 @@ from __future__ import annotations
 import streamlit as st
 
 from finder.state import init_session_state
-from finder.ui_components import inject_custom_styles, render_difficulty_badge, render_hero_banner
+from finder.ui_components import (
+    inject_custom_styles,
+    render_difficulty_badge,
+    render_hero_banner,
+    render_sidebar_nav,
+)
 
 st.set_page_config(
     page_title="Saved Shortlist | OpenSource Compass",
@@ -25,10 +30,8 @@ render_hero_banner(
 )
 
 with st.sidebar:
-    st.page_link("app.py", label="← Back to Main Dashboard", icon="🏠")
-    st.page_link("pages/1_Issue_Explorer.py", label="Issue Explorer", icon="🔎")
-    st.page_link("pages/2_Repository_Analysis.py", label="Repository Analysis", icon="🏛️")
-    st.page_link("pages/3_Skill_Gap_Analysis.py", label="Skill Gap Analysis", icon="📈")
+    render_sidebar_nav()
+
 
 if not saved_items:
     st.info("⭐ Your shortlist is currently empty. Explore issues on the Dashboard or Issue Explorer and click 'Save to Shortlist' to bookmark them!")

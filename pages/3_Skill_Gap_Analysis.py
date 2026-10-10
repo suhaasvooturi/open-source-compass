@@ -6,7 +6,7 @@ import streamlit as st
 
 from finder.ranking import RankedIssue
 from finder.state import init_session_state, load_demo_analysis
-from finder.ui_components import inject_custom_styles, render_hero_banner
+from finder.ui_components import inject_custom_styles, render_hero_banner, render_sidebar_nav
 
 st.set_page_config(
     page_title="Skill Gap Analysis | OpenSource Compass",
@@ -30,10 +30,8 @@ render_hero_banner(
 )
 
 with st.sidebar:
-    st.page_link("app.py", label="← Back to Main Dashboard", icon="🏠")
-    st.page_link("pages/1_Issue_Explorer.py", label="Issue Explorer", icon="🔎")
-    st.page_link("pages/2_Repository_Analysis.py", label="Repository Analysis", icon="🏛️")
-    st.page_link("pages/4_Saved_Shortlist.py", label="Saved Shortlist", icon="⭐")
+    render_sidebar_nav()
+
 
 # Summary of Developer Profile
 col_prof1, col_prof2 = st.columns(2)
@@ -91,6 +89,7 @@ with col_need:
     else:
         st.write("You already have all detected technologies required for this issue!")
 
-st.markdown("#### 🛠️ Recommended Preparation Checklist:")
-for step in issue.preparation_steps:
-    st.markdown(f"- [ ] {step}")
+st.markdown("#### 🛠️ Interactive Preparation Checklist:")
+for idx, step in enumerate(issue.preparation_steps):
+    st.checkbox(step, key=f"prep_check_{issue.number}_{idx}")
+
