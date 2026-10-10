@@ -340,6 +340,334 @@ pytest tests/
             },
         ],
     },
+    "psf/requests": {
+        "metadata": {
+            "name": "requests",
+            "owner": "psf",
+            "full_name": "psf/requests [DEMO / CACHED SNAPSHOT]",
+            "description": "A simple, yet elegant, HTTP library for Python, built for human beings.",
+            "language": "Python",
+            "topics": ["python", "http", "requests", "client", "networking"],
+            "default_branch": "main",
+            "stargazers_count": 51200,
+            "forks_count": 9200,
+            "open_issues_count": 24,
+            "license": "Apache-2.0",
+            "html_url": "https://github.com/psf/requests",
+            "archived": False,
+        },
+        "root_files": [
+            "pyproject.toml",
+            "setup.py",
+            "requirements.txt",
+            "README.md",
+            "CONTRIBUTING.md",
+            "tests",
+            "src/requests",
+            "docs",
+            "Makefile",
+        ],
+        "readme": """# Requests: HTTP for Humans™
+Requests is an elegant and simple HTTP library for Python, built for human beings.
+
+## Features
+- Keep-Alive & Connection Pooling
+- International Domains and URLs
+- Sessions with Cookie Persistence
+- Browser-style SSL Verification
+- Automatic Content Decompression
+- Basic/Digest Authentication
+
+## Installation
+```bash
+pip install requests
+```
+""",
+        "contributing": """# Contributing to Requests
+We love contributions from everyone.
+
+## Development Setup
+```bash
+git clone https://github.com/psf/requests.git
+cd requests
+pip install -e ".[dev]"
+```
+
+## Running Tests
+```bash
+pytest tests/
+pytest tests/test_requests.py
+tox
+```
+
+## Pull Request Guidelines
+- Follow PEP 8 guidelines.
+- Add unit tests for bug fixes and new behaviors.
+- Keep commits focused and provide clear descriptions.
+""",
+        "issues": [
+            {
+                "number": 1001,
+                "title": "Fix missing timeout warning in documentation examples",
+                "body": "The quickstart guide examples for `requests.get()` in `docs/user/quickstart.rst` do not specify a timeout parameter. According to security recommendations, examples should always show `timeout=5` or mention timeout best practices to prevent newcomers from writing hanging network calls.",
+                "labels": [
+                    {"name": "good first issue", "color": "7057ff", "description": "Good for newcomers"},
+                    {"name": "documentation", "color": "0075ca", "description": "Improvements to docs"},
+                ],
+                "label_names": ["good first issue", "documentation"],
+                "html_url": "https://github.com/psf/requests/issues/1001",
+                "comments": 1,
+                "created_at": "2026-03-01T10:00:00Z",
+                "updated_at": "2026-03-03T11:00:00Z",
+                "author": "security_enthusiast",
+                "state": "open",
+            },
+            {
+                "number": 1002,
+                "title": "Add retry strategy test case with custom backoff factor",
+                "body": "In `tests/test_requests.py`, we need a dedicated test verifying that `HTTPAdapter` configured with `urllib3.util.retry.Retry(backoff_factor=0.5)` properly respects custom delays during simulated HTTP 503 Service Unavailable responses.\n\n### Acceptance Criteria\n- Use pytest and unittest.mock to simulate server responses.\n- Verify backoff sleep intervals match expected values.",
+                "labels": [
+                    {"name": "good first issue", "color": "7057ff", "description": "Good for newcomers"},
+                    {"name": "testing", "color": "fbca04", "description": "Testing tasks"},
+                ],
+                "label_names": ["good first issue", "testing"],
+                "html_url": "https://github.com/psf/requests/issues/1002",
+                "comments": 2,
+                "created_at": "2026-03-02T15:00:00Z",
+                "updated_at": "2026-03-04T09:00:00Z",
+                "author": "qa_tester",
+                "state": "open",
+            },
+            {
+                "number": 1003,
+                "title": "Support HTTP/2 stream prioritization flags in custom transport adapter",
+                "body": "Allow users implementing HTTP/2 transport adapters to pass stream priority headers without them being stripped during session header normalization.",
+                "labels": [
+                    {"name": "enhancement", "color": "a2eeef", "description": "New feature"},
+                    {"name": "help wanted", "color": "008672", "description": "Extra attention needed"},
+                ],
+                "label_names": ["enhancement", "help wanted"],
+                "html_url": "https://github.com/psf/requests/issues/1003",
+                "comments": 5,
+                "created_at": "2026-02-28T12:00:00Z",
+                "updated_at": "2026-03-05T16:00:00Z",
+                "author": "net_engineer",
+                "state": "open",
+            },
+            {
+                "number": 1004,
+                "title": "Refactor connection pool lock contention in multi-threaded session dispatcher",
+                "body": "Profile thread contention across `requests.Session` instances sharing an adapter with a large `pool_maxsize`. Optimize lock acquisition paths in `requests/adapters.py`.",
+                "labels": [
+                    {"name": "advanced", "color": "b60205", "description": "High complexity"},
+                    {"name": "performance", "color": "d4c5f9", "description": "Optimization"},
+                ],
+                "label_names": ["advanced", "performance"],
+                "html_url": "https://github.com/psf/requests/issues/1004",
+                "comments": 14,
+                "created_at": "2026-02-20T08:00:00Z",
+                "updated_at": "2026-03-06T18:00:00Z",
+                "author": "perf_lead",
+                "state": "open",
+            },
+        ],
+    },
+    "tiangolo/fastapi": {
+        "metadata": {
+            "name": "fastapi",
+            "owner": "tiangolo",
+            "full_name": "tiangolo/fastapi [DEMO / CACHED SNAPSHOT]",
+            "description": "FastAPI framework, high performance, easy to learn, fast to code, ready for production.",
+            "language": "Python",
+            "topics": ["python", "fastapi", "pydantic", "starlette", "asyncio", "rest-api"],
+            "default_branch": "master",
+            "stargazers_count": 78000,
+            "forks_count": 6400,
+            "open_issues_count": 45,
+            "license": "MIT",
+            "html_url": "https://github.com/tiangolo/fastapi",
+            "archived": False,
+        },
+        "root_files": [
+            "pyproject.toml",
+            "requirements.txt",
+            "README.md",
+            "CONTRIBUTING.md",
+            "fastapi",
+            "tests",
+            "docs",
+        ],
+        "readme": """# FastAPI
+FastAPI is a modern, fast (high-performance), web framework for building APIs with Python based on standard Python type hints.
+
+## Key Features
+- Fast: Very high performance, on par with NodeJS and Go.
+- Fast to code: Increase speed to develop features by about 200% to 300%.
+- Fewer bugs: Reduce about 40% of human (developer) induced errors.
+- Intuitive: Great editor support. Completion everywhere. Less time debugging.
+""",
+        "contributing": """# Contributing to FastAPI
+Thank you for your interest in contributing to FastAPI!
+
+## Development Setup
+```bash
+git clone https://github.com/tiangolo/fastapi.git
+cd fastapi
+pdm install
+```
+
+## Running Tests
+```bash
+pytest tests/
+bash scripts/test.sh
+```
+""",
+        "issues": [
+            {
+                "number": 2001,
+                "title": "Update tutorial documentation for Pydantic v2 field validator decorators",
+                "body": "The tutorial in `docs/tutorial/body-nested-models.md` still demonstrates `@validator` instead of `@field_validator(mode='before')` from Pydantic v2. Update the doc code snippet and verify the example script runs without deprecation warnings.",
+                "labels": [
+                    {"name": "good first issue", "color": "7057ff", "description": "Good for newcomers"},
+                    {"name": "documentation", "color": "0075ca", "description": "Improvements to docs"},
+                ],
+                "label_names": ["good first issue", "documentation"],
+                "html_url": "https://github.com/tiangolo/fastapi/issues/2001",
+                "comments": 2,
+                "created_at": "2026-03-02T11:00:00Z",
+                "updated_at": "2026-03-05T14:00:00Z",
+                "author": "doc_writer",
+                "state": "open",
+            },
+            {
+                "number": 2002,
+                "title": "Add test assertion for query parameter alias with special characters",
+                "body": "In `tests/test_query.py`, write a unit test demonstrating that query parameters with kebab-case or alias like `filter-by` and `order_by` parse properly through OpenAPI specs and dependency injections.",
+                "labels": [
+                    {"name": "good first issue", "color": "7057ff", "description": "Good for newcomers"},
+                    {"name": "testing", "color": "fbca04", "description": "Testing tasks"},
+                ],
+                "label_names": ["good first issue", "testing"],
+                "html_url": "https://github.com/tiangolo/fastapi/issues/2002",
+                "comments": 3,
+                "created_at": "2026-03-03T16:00:00Z",
+                "updated_at": "2026-03-06T10:00:00Z",
+                "author": "test_lover",
+                "state": "open",
+            },
+            {
+                "number": 2003,
+                "title": "Support streaming multipart file uploads with custom chunk size",
+                "body": "Add support for configuring custom chunk buffer sizes when processing large multipart file uploads via `UploadFile` to prevent spikes in memory consumption.",
+                "labels": [
+                    {"name": "enhancement", "color": "a2eeef", "description": "New feature"},
+                    {"name": "help wanted", "color": "008672", "description": "Extra attention needed"},
+                ],
+                "label_names": ["enhancement", "help wanted"],
+                "html_url": "https://github.com/tiangolo/fastapi/issues/2003",
+                "comments": 8,
+                "created_at": "2026-02-25T14:00:00Z",
+                "updated_at": "2026-03-07T12:00:00Z",
+                "author": "api_architect",
+                "state": "open",
+            },
+        ],
+    },
+    "suhaasvooturi/open-source-compass": {
+        "metadata": {
+            "name": "open-source-compass",
+            "owner": "suhaasvooturi",
+            "full_name": "suhaasvooturi/open-source-compass [DEMO / CACHED SNAPSHOT]",
+            "description": "AI-Assisted Open-Source Contribution Finder. Find your first issue. Make your first contribution.",
+            "language": "Python",
+            "topics": ["python", "streamlit", "open-source", "machine-learning", "scikit-learn", "ai"],
+            "default_branch": "main",
+            "stargazers_count": 152,
+            "forks_count": 28,
+            "open_issues_count": 12,
+            "license": "MIT",
+            "html_url": "https://github.com/suhaasvooturi/open-source-compass",
+            "archived": False,
+        },
+        "root_files": [
+            "pyproject.toml",
+            "requirements.txt",
+            "README.md",
+            "CONTRIBUTING.md",
+            "app.py",
+            "finder",
+            "pages",
+            "tests",
+        ],
+        "readme": """# OpenSource Compass 🧭
+AI-Assisted Open-Source Contribution Finder. Find your first issue. Make your first contribution.
+""",
+        "contributing": """# Contributing to OpenSource Compass
+Welcome! We love first-time contributors.
+
+## Local Setup
+```bash
+git clone https://github.com/suhaasvooturi/open-source-compass.git
+cd open-source-compass
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+pytest tests/ -v
+streamlit run app.py
+```
+""",
+        "issues": [
+            {
+                "number": 501,
+                "title": "Add copy-to-clipboard button for recommended git commands in issue card",
+                "body": "In `finder/ui_components.py`, add a clean copyable code block or button allowing newcomers to immediately copy the git commands needed to clone and branch for that specific issue.",
+                "labels": [
+                    {"name": "good first issue", "color": "7057ff", "description": "Good for newcomers"},
+                    {"name": "ui", "color": "0075ca", "description": "UI improvements"},
+                ],
+                "label_names": ["good first issue", "ui"],
+                "html_url": "https://github.com/suhaasvooturi/open-source-compass/issues/501",
+                "comments": 1,
+                "created_at": "2026-03-01T12:00:00Z",
+                "updated_at": "2026-03-04T10:00:00Z",
+                "author": "suhaasvooturi",
+                "state": "open",
+            },
+            {
+                "number": 502,
+                "title": "Add unit tests verifying alias resolution for common repository names",
+                "body": "In `tests/test_github_api.py`, write tests verifying that typing shorthand aliases like 'fastapi', 'requests', and 'flask' correctly resolves to their official owner/repo pairs.",
+                "labels": [
+                    {"name": "good first issue", "color": "7057ff", "description": "Good for newcomers"},
+                    {"name": "testing", "color": "fbca04", "description": "Testing tasks"},
+                ],
+                "label_names": ["good first issue", "testing"],
+                "html_url": "https://github.com/suhaasvooturi/open-source-compass/issues/502",
+                "comments": 2,
+                "created_at": "2026-03-02T14:00:00Z",
+                "updated_at": "2026-03-05T11:00:00Z",
+                "author": "suhaasvooturi",
+                "state": "open",
+            },
+            {
+                "number": 503,
+                "title": "Add CSV export for filtered issues in the Issue Explorer view",
+                "body": "Allow users to download their filtered issues as a clean CSV table with columns for Issue #, Title, Difficulty, Score, Effort, and URL.",
+                "labels": [
+                    {"name": "enhancement", "color": "a2eeef", "description": "New feature"},
+                    {"name": "help wanted", "color": "008672", "description": "Extra attention needed"},
+                ],
+                "label_names": ["enhancement", "help wanted"],
+                "html_url": "https://github.com/suhaasvooturi/open-source-compass/issues/503",
+                "comments": 3,
+                "created_at": "2026-03-03T18:00:00Z",
+                "updated_at": "2026-03-06T15:00:00Z",
+                "author": "suhaasvooturi",
+                "state": "open",
+            },
+        ],
+    },
 }
 
 
@@ -352,5 +680,17 @@ def get_demo_repository(key: str) -> Dict[str, Any]:
 
 
 def list_demo_repositories() -> List[str]:
-    """List keys of all available synthetic demonstration repositories."""
+    """List keys of all available demonstration and snapshot repositories."""
     return list(DEMO_REPOSITORIES.keys())
+
+
+def get_snapshot_for_repo(owner: str, repo: str) -> Optional[Dict[str, Any]]:
+    """Return a pre-cached offline snapshot for a known popular repository if available."""
+    target_slug = f"{owner.lower().strip()}/{repo.lower().strip()}"
+    for key, data in DEMO_REPOSITORIES.items():
+        if key.lower() == target_slug:
+            return data
+        if key.lower().endswith(f"/{repo.lower().strip()}"):
+            return data
+    return None
+

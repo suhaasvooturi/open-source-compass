@@ -54,16 +54,44 @@ for iss in ranked_issues:
 
 st.subheader("📊 Skill Gaps Across This Repository's Open Issues")
 
+DOC_LINKS = {
+    "python": "https://docs.python.org/3/",
+    "fastapi": "https://fastapi.tiangolo.com/",
+    "react": "https://react.dev/",
+    "typescript": "https://www.typescriptlang.org/docs/",
+    "javascript": "https://developer.mozilla.org/en-US/docs/Web/JavaScript",
+    "docker": "https://docs.docker.com/",
+    "pytest": "https://docs.pytest.org/",
+    "postgresql": "https://www.postgresql.org/docs/",
+    "sql": "https://www.w3schools.com/sql/",
+    "rest apis": "https://restfulapi.net/",
+    "git": "https://git-scm.com/doc",
+    "machine learning": "https://scikit-learn.org/stable/",
+    "flask": "https://flask.palletsprojects.com/",
+    "pydantic": "https://docs.pydantic.dev/",
+    "redis": "https://redis.io/docs/",
+}
+
 if not missing_freq:
     st.success("🎉 Outstanding! Your documented skills cover all detected technologies required across the open issues in this repository!")
 else:
-    st.write("These technologies appear in open issues but are currently not listed in your skills profile:")
+    st.write("These technologies appear in open issues but are currently not listed in your skills profile. Click to add them to your profile:")
 
     cols = st.columns(min(4, len(missing_freq)))
     for idx, (tech, count) in enumerate(sorted(missing_freq.items(), key=lambda x: x[1], reverse=True)):
         col = cols[idx % len(cols)]
         with col:
             st.metric(label=f"Learn {tech}", value=f"{count} Issues", delta=f"{int(count/len(ranked_issues)*100)}% of repo")
+            col_b1, col_b2 = st.columns(2)
+            with col_b1:
+                if st.button(f"➕ Add", key=f"btn_add_skill_{tech}", help=f"Add {tech} to your developer profile", use_container_width=True):
+                    if tech not in st.session_state.user_skills:
+                        st.session_state.user_skills.append(tech)
+                        st.toast(f"Added {tech} to your profile! Recalculating match scores... ✨")
+                        st.rerun()
+            with col_b2:
+                doc_url = DOC_LINKS.get(tech.lower(), f"https://www.google.com/search?q={tech}+documentation")
+                st.link_button("📚 Docs", doc_url, use_container_width=True)
 
 st.markdown("---")
 st.subheader("📋 Issue-Specific Skill Gap Explorer")
@@ -86,10 +114,20 @@ with col_need:
     if issue.missing_skills:
         for m in issue.missing_skills:
             st.markdown(f"- **{m}**: Recommended to review before contributing.")
+            if st.button(f"➕ Add '{m}' to My Profile", key=f"btn_add_specific_{issue.number}_{m}"):
+                if m not in st.session_state.user_skills:
+                    st.session_state.user_skills.append(m)
+                    st.toast(f"Added {m} to your profile! ⭐")
+                    st.rerun()
     else:
         st.write("You already have all detected technologies required for this issue!")
 
 st.markdown("#### 🛠️ Interactive Preparation Checklist:")
+checklist_md = f"### Preparation Checklist for Issue #{issue.number} ({issue.title})\n\n"
 for idx, step in enumerate(issue.preparation_steps):
     st.checkbox(step, key=f"prep_check_{issue.number}_{idx}")
+    checklist_md += f"- [ ] {step}\n"
+
+with st.expander("📄 Export Checklist as Markdown"):
+    st.code(checklist_md, language="markdown")
 

@@ -35,3 +35,22 @@ def test_demo_repository_contents():
             assert "body" in iss
             assert "labels" in iss
             assert "html_url" in iss
+
+
+def test_get_snapshot_for_repo():
+    """Verify get_snapshot_for_repo retrieves cached snapshots and returns None for unknown repos."""
+    from finder.demo_data import get_snapshot_for_repo
+
+    snap = get_snapshot_for_repo("psf", "requests")
+    assert snap is not None
+    assert snap["metadata"]["name"] == "requests"
+
+    snap_fastapi = get_snapshot_for_repo("tiangolo", "fastapi")
+    assert snap_fastapi is not None
+    assert snap_fastapi["metadata"]["name"] == "fastapi"
+
+    snap_compass = get_snapshot_for_repo("suhaasvooturi", "open-source-compass")
+    assert snap_compass is not None
+
+    assert get_snapshot_for_repo("unknown-org", "nonexistent-repo-xyz") is None
+

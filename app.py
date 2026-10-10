@@ -2,7 +2,7 @@
 
 Tagline: Find your first issue. Make your first contribution.
 Author: Suhaas Vooturi
-Repository: https://github.com/suhaasvooturi/ai-open-source-contribution-finder
+Repository: https://github.com/suhaasvooturi/open-source-compass
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 # Load local environment variables if available
 load_dotenv()
 
-from finder.demo_data import get_demo_repository, list_demo_repositories
+from finder.demo_data import get_demo_repository, get_snapshot_for_repo, list_demo_repositories
 from finder.explanation import LLMExplainer, TemplateExplainer
 from finder.github_api import (
     GitHubAPIError,
@@ -53,24 +53,42 @@ init_session_state()
 # Explainer engine instance
 explainer = LLMExplainer()
 
+# Common alias dictionary for instant resolution
+POPULAR_ALIASES = {
+    "fastapi": "tiangolo/fastapi",
+    "requests": "psf/requests",
+    "flask": "pallets/flask",
+    "react": "facebook/react",
+    "compass": "suhaasvooturi/open-source-compass",
+    "open-source-compass": "suhaasvooturi/open-source-compass",
+    "ai-open-source-contribution-finder": "suhaasvooturi/open-source-compass",
+    "django": "django/django",
+    "numpy": "numpy/numpy",
+    "pandas": "pandas-dev/pandas",
+}
 
-def run_live_analysis(repo_url: str, token: str) -> None:
-    """Fetch and analyze a live public GitHub repository."""
-    if not repo_url or not repo_url.strip():
+
+def run_live_analysis(repo_input: str, token: str) -> None:
+    """Fetch and analyze a live public GitHub repository or fallback gracefully to cached snapshot."""
+    if not repo_input or not repo_input.strip():
         st.error("❌ Please provide a repository name or URL.")
         return
+
+    cleaned_input = repo_input.strip()
+    if cleaned_input.lower() in POPULAR_ALIASES:
+        cleaned_input = POPULAR_ALIASES[cleaned_input.lower()]
 
     st.session_state.suggested_user_repos = []
     client = GitHubClient(token=token if token.strip() else None)
 
     try:
-        owner, repo = parse_github_url(repo_url)
+        owner, repo = parse_github_url(cleaned_input)
     except UserProfileURLError as e:
         st.warning(f"⚠️ {str(e)}")
-        with st.spinner(f"🔍 Checking public repositories for user @{e.username}..."):
+        with st.spinner(f"🔍 Discovering public repositories for user @{e.username}..."):
             user_repos = client.get_user_repositories(e.username)
             if user_repos:
-                st.info(f"Found {len(user_repos)} public repositories for @{e.username}! Select one below:")
+                st.info(f"Discovered **{len(user_repos)}** public repositories for @{e.username}! Click any repository below to analyze:")
                 st.session_state.suggested_user_repos = user_repos
             else:
                 st.error(
@@ -81,32 +99,64 @@ def run_live_analysis(repo_url: str, token: str) -> None:
     except InvalidRepositoryURLError as e:
         st.error(
             f"❌ Invalid Repository URL: {str(e)}\n\n"
-            f"💡 Format should be 'owner/repo' (e.g. 'tiangolo/fastapi', 'psf/requests', or 'suhaasvooturi/ai-open-source-contribution-finder')."
+            f"💡 Format should be 'owner/repo' (e.g. 'tiangolo/fastapi', 'psf/requests', or 'suhaasvooturi/open-source-compass')."
         )
         return
 
-    with st.spinner(f"🔍 Connecting to GitHub API for {owner}/{repo}..."):
+    use_cached_snapshot = False
+
+    with st.spinner(f"🔍 Connecting to GitHub for {owner}/{repo}..."):
         try:
             metadata = client.get_repository(owner, repo)
+        except (RateLimitExceededError, NetworkConnectionError, GitHubAPIError) as e:
+            snapshot = get_snapshot_for_repo(owner, repo)
+            if snapshot:
+                st.warning(
+                    f"ℹ️ GitHub Live API Note: {str(e)}\n\n"
+                    f"✨ Automatically loaded cached live snapshot for **{owner}/{repo}** so you can continue testing all features without interruption!"
+                )
+                use_cached_snapshot = True
+                metadata = snapshot["metadata"]
+                root_files = snapshot.get("root_files", [])
+                readme = snapshot.get("readme")
+                contributing = snapshot.get("contributing")
+                issues = snapshot.get("issues", [])
+            else:
+                st.error(f"❌ GitHub API Error: {str(e)}")
+                st.info("💡 You can explore popular pre-cached repositories below or switch to Offline Demo Mode in the sidebar.")
+                return
         except RepositoryNotFoundError as e:
-            st.error(f"❌ Repository Not Found: {str(e)}")
-            return
-        except RateLimitExceededError as e:
-            st.error(f"⚠️ {str(e)}")
-            st.info("💡 Switch to Demo Mode in the sidebar to explore full functionality without rate limits.")
-            return
-        except NetworkConnectionError as e:
-            st.error(f"🌐 Network Error: {str(e)}")
-            return
-        except GitHubAPIError as e:
-            st.error(f"❌ GitHub API Error: {str(e)}")
-            return
+            snapshot = get_snapshot_for_repo(owner, repo)
+            if snapshot:
+                use_cached_snapshot = True
+                metadata = snapshot["metadata"]
+                root_files = snapshot.get("root_files", [])
+                readme = snapshot.get("readme")
+                contributing = snapshot.get("contributing")
+                issues = snapshot.get("issues", [])
+            else:
+                st.error(f"❌ Repository Not Found: {str(e)}")
+                return
 
-    with st.spinner("📦 Retrieving issues, README, root tree, and contribution guidelines..."):
-        issues = client.get_open_issues(owner, repo, max_count=50)
-        readme = client.get_readme(owner, repo)
-        contributing = client.get_contributing_guide(owner, repo)
-        root_files = client.get_root_files(owner, repo)
+    if not use_cached_snapshot:
+        with st.spinner("📦 Retrieving issues, README, root tree, and contribution guidelines..."):
+            try:
+                issues = client.get_open_issues(owner, repo, max_count=50)
+                readme = client.get_readme(owner, repo)
+                contributing = client.get_contributing_guide(owner, repo)
+                root_files = client.get_root_files(owner, repo)
+            except (RateLimitExceededError, NetworkConnectionError) as e:
+                snapshot = get_snapshot_for_repo(owner, repo)
+                if snapshot:
+                    st.warning(f"ℹ️ Live API rate limited while retrieving issues. Loaded cached snapshot for **{owner}/{repo}**.")
+                    metadata = snapshot["metadata"]
+                    root_files = snapshot.get("root_files", [])
+                    readme = snapshot.get("readme")
+                    contributing = snapshot.get("contributing")
+                    issues = snapshot.get("issues", [])
+                else:
+                    st.error(f"⚠️ {str(e)}")
+                    return
 
     with st.spinner("🧠 Performing architecture analysis and matching issues to your profile..."):
         analyzer = RepositoryAnalyzer(metadata, root_files, readme, contributing)
@@ -130,6 +180,11 @@ def run_live_analysis(repo_url: str, token: str) -> None:
         st.session_state.last_analyzed_target = f"{owner}/{repo}"
 
 
+# Ensure initial state has an active repository so user never lands on a blank empty screen
+if not st.session_state.ranked_issues:
+    load_demo_analysis(st.session_state.selected_demo_repo)
+
+
 # ==========================================
 # SIDEBAR
 # ==========================================
@@ -148,37 +203,45 @@ with st.sidebar:
     st.session_state.mode = mode
 
     if "Demo" in mode:
+        demo_options = list_demo_repositories()
+        cur_demo_idx = demo_options.index(st.session_state.selected_demo_repo) if st.session_state.selected_demo_repo in demo_options else 0
         demo_choice = st.selectbox(
-            "Select Demo Repository:",
-            list_demo_repositories(),
-            index=list_demo_repositories().index(st.session_state.selected_demo_repo)
-            if st.session_state.selected_demo_repo in list_demo_repositories()
-            else 0,
+            "Select Demo / Snapshot Repository:",
+            demo_options,
+            index=cur_demo_idx,
             format_func=lambda x: f"📦 {x.replace('demo/', '')}",
         )
-        st.session_state.selected_demo_repo = demo_choice
-        if st.button("🚀 Load Demo Issues", type="primary", use_container_width=True):
+        if demo_choice != st.session_state.selected_demo_repo:
+            st.session_state.selected_demo_repo = demo_choice
+            load_demo_analysis(demo_choice)
+            st.rerun()
+
+        if st.button("🚀 Re-Load Demo Issues", type="primary", use_container_width=True):
             load_demo_analysis(st.session_state.selected_demo_repo)
             st.rerun()
     else:
-        st.session_state.repo_url = st.text_input(
-            "GitHub Repository URL / Slug:",
-            value=st.session_state.repo_url,
-            placeholder="e.g. psf/requests, tiangolo/fastapi",
-            help="Enter in owner/repo format (e.g. psf/requests or https://github.com/tiangolo/fastapi)",
-        )
+        with st.form("sidebar_repo_form", clear_on_submit=False):
+            side_url_val = st.text_input(
+                "GitHub Repository URL / Slug:",
+                value=st.session_state.repo_url,
+                placeholder="e.g. psf/requests, tiangolo/fastapi",
+                help="Enter in owner/repo format (e.g. psf/requests or https://github.com/tiangolo/fastapi)",
+            )
+            col_side1, col_side2 = st.columns([3, 1])
+            with col_side1:
+                side_btn_analyze = st.form_submit_button("🚀 Analyze", type="primary", use_container_width=True)
+            with col_side2:
+                side_btn_clear = st.form_submit_button("🧹 Clear", use_container_width=True)
 
-        col_side1, col_side2 = st.columns([3, 1])
-        with col_side1:
-            if st.button("🚀 Analyze", type="primary", key="btn_side_analyze_top", use_container_width=True):
-                run_live_analysis(st.session_state.repo_url, st.session_state.github_token)
-                st.rerun()
-        with col_side2:
-            if st.button("🧹 Clear", key="btn_side_clear", use_container_width=True):
-                st.session_state.repo_url = ""
-                st.session_state.ranked_issues = []
-                st.session_state.suggested_user_repos = []
-                st.rerun()
+        if side_btn_analyze:
+            st.session_state.repo_url = side_url_val
+            run_live_analysis(side_url_val, st.session_state.github_token)
+            st.rerun()
+        if side_btn_clear:
+            st.session_state.repo_url = ""
+            st.session_state.suggested_user_repos = []
+            load_demo_analysis("demo/fastapi-taskflow")
+            st.rerun()
 
         with st.expander("🔑 GitHub Token (Optional)", expanded=False):
             st.session_state.github_token = st.text_input(
@@ -200,12 +263,14 @@ with st.sidebar:
     # Experience level
     exp_levels = ["Beginner", "Intermediate", "Advanced"]
     cur_exp_idx = exp_levels.index(st.session_state.experience_level) if st.session_state.experience_level in exp_levels else 0
-    st.session_state.experience_level = st.selectbox(
+    new_exp = st.selectbox(
         "Experience Level:",
         exp_levels,
         index=cur_exp_idx,
         help="Beginner targets 'good first issue' and docs. Intermediate targets features & bugfixes. Advanced targets architecture & performance.",
     )
+    if new_exp != st.session_state.experience_level:
+        st.session_state.experience_level = new_exp
 
     # Current Skills
     selected_skills = st.multiselect(
@@ -247,102 +312,94 @@ with st.sidebar:
 # ==========================================
 render_hero_banner()
 
-# Landing view if no issues are loaded yet
-if not st.session_state.ranked_issues:
-    if "Demo" in st.session_state.mode:
-        load_demo_analysis(st.session_state.selected_demo_repo)
-        st.rerun()
-    else:
-        st.markdown(
-            """
-            <div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 16px; padding: 24px 28px; margin-bottom: 24px;">
-                <h3 style="margin-top: 0; color: #F8FAFC;">🔍 Enter a Public GitHub Repository</h3>
-                <p style="color: #94A3B8; font-size: 0.95rem; margin-bottom: 0;">
-                    Type any public GitHub repository (e.g. <code>tiangolo/fastapi</code> or <code>psf/requests</code>) to analyze its architecture, classify open issues, and match them with your skills.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        # Center input box and button
-        col_inp, col_btn = st.columns([4, 1])
+# Prominent Center Search and Discovery Form
+with st.container():
+    with st.form("hero_search_bar_form", clear_on_submit=False):
+        col_inp, col_btn = st.columns([5, 1])
         with col_inp:
-            main_input_val = st.text_input(
-                "Enter repository URL or slug:",
+            hero_search_val = st.text_input(
+                "Search & Analyze Any GitHub Repository:",
                 value=st.session_state.repo_url,
-                placeholder="e.g. psf/requests, tiangolo/fastapi, or pallets/flask",
+                placeholder="Enter repository (e.g. psf/requests, tiangolo/fastapi, pallets/flask) or paste GitHub URL...",
                 label_visibility="collapsed",
-                key="main_repo_input",
             )
         with col_btn:
-            if st.button("🚀 Analyze Repository", type="primary", key="main_analyze_btn", use_container_width=True):
-                st.session_state.repo_url = main_input_val
-                run_live_analysis(main_input_val, st.session_state.github_token)
-                st.rerun()
+            hero_btn_submit = st.form_submit_button("🚀 Analyze", type="primary", use_container_width=True)
 
-        # Display discovered public repos if a user profile was entered
-        if getattr(st.session_state, "suggested_user_repos", None):
-            st.markdown("### 📦 Public Repositories Found:")
-            for r in st.session_state.suggested_user_repos[:6]:
-                col_r_info, col_r_btn = st.columns([4, 1])
-                with col_r_info:
-                    st.markdown(
-                        f"**[{r['full_name']}](https://github.com/{r['full_name']})** (`{r['language']}`) — "
-                        f"⭐ {r['stargazers_count']} | 🎫 {r['open_issues_count']} issues\n\n"
-                        f"<small style='color: #94A3B8;'>{r['description']}</small>",
-                        unsafe_allow_html=True,
-                    )
-                with col_r_btn:
-                    if st.button(f"Analyze {r['name']}", key=f"btn_pick_{r['full_name']}", use_container_width=True):
-                        st.session_state.repo_url = r["full_name"]
-                        run_live_analysis(r["full_name"], st.session_state.github_token)
-                        st.rerun()
-            st.markdown("---")
+    if hero_btn_submit:
+        st.session_state.repo_url = hero_search_val
+        st.session_state.mode = "Live GitHub Repository"
+        run_live_analysis(hero_search_val, st.session_state.github_token)
+        st.rerun()
 
-        # Quick start popular repositories
-        st.markdown("#### 💡 Quick-Start with Popular Beginner-Friendly Repositories:")
-        col_q1, col_q2, col_q3, col_q4, col_q5 = st.columns(5)
-        with col_q1:
-            if st.button("🐍 psf/requests", use_container_width=True):
-                st.session_state.repo_url = "psf/requests"
-                run_live_analysis("psf/requests", st.session_state.github_token)
-                st.rerun()
-        with col_q2:
-            if st.button("⚡ tiangolo/fastapi", use_container_width=True):
-                st.session_state.repo_url = "tiangolo/fastapi"
-                run_live_analysis("tiangolo/fastapi", st.session_state.github_token)
-                st.rerun()
-        with col_q3:
-            if st.button("🌶️ pallets/flask", use_container_width=True):
-                st.session_state.repo_url = "pallets/flask"
-                run_live_analysis("pallets/flask", st.session_state.github_token)
-                st.rerun()
-        with col_q4:
-            if st.button("⚛️ facebook/react", use_container_width=True):
-                st.session_state.repo_url = "facebook/react"
-                run_live_analysis("facebook/react", st.session_state.github_token)
-                st.rerun()
-        with col_q5:
-            if st.button("🧭 Our Repository", use_container_width=True):
-                st.session_state.repo_url = "suhaasvooturi/ai-open-source-contribution-finder"
-                run_live_analysis("suhaasvooturi/ai-open-source-contribution-finder", st.session_state.github_token)
-                st.rerun()
+# Quick-Start repository chips
+st.markdown("##### ⚡ Quick-Start Repositories:")
+col_q1, col_q2, col_q3, col_q4, col_q5 = st.columns(5)
+with col_q1:
+    if st.button("🐍 psf/requests", use_container_width=True):
+        st.session_state.repo_url = "psf/requests"
+        st.session_state.mode = "Live GitHub Repository"
+        run_live_analysis("psf/requests", st.session_state.github_token)
+        st.rerun()
+with col_q2:
+    if st.button("⚡ tiangolo/fastapi", use_container_width=True):
+        st.session_state.repo_url = "tiangolo/fastapi"
+        st.session_state.mode = "Live GitHub Repository"
+        run_live_analysis("tiangolo/fastapi", st.session_state.github_token)
+        st.rerun()
+with col_q3:
+    if st.button("🌶️ pallets/flask", use_container_width=True):
+        st.session_state.repo_url = "pallets/flask"
+        st.session_state.mode = "Live GitHub Repository"
+        run_live_analysis("pallets/flask", st.session_state.github_token)
+        st.rerun()
+with col_q4:
+    if st.button("🧭 OpenSource Compass", use_container_width=True):
+        st.session_state.repo_url = "suhaasvooturi/open-source-compass"
+        st.session_state.mode = "Live GitHub Repository"
+        run_live_analysis("suhaasvooturi/open-source-compass", st.session_state.github_token)
+        st.rerun()
+with col_q5:
+    if st.button("📦 FastAPI TaskFlow (Demo)", use_container_width=True):
+        st.session_state.selected_demo_repo = "demo/fastapi-taskflow"
+        st.session_state.mode = "Offline Demo Mode"
+        load_demo_analysis("demo/fastapi-taskflow")
+        st.rerun()
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.info("💡 You can also switch to **'Offline Demo Mode'** in the sidebar at any time to explore synthetic issues without hitting GitHub API limits.")
-        st.stop()
-
+# Display discovered user repositories if a username profile was searched
+if getattr(st.session_state, "suggested_user_repos", None):
+    st.markdown("### 📦 Public Repositories Found:")
+    cols_user_repos = st.columns(2)
+    for idx, r in enumerate(st.session_state.suggested_user_repos[:6]):
+        col_card = cols_user_repos[idx % 2]
+        with col_card:
+            st.markdown(
+                f"""
+                <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+                    <div style="font-weight: 700; font-size: 1.05rem; color: #F1F5F9;">{r['name']} <span style="font-size: 0.85rem; color: #60A5FA;">({r.get('language') or 'General'})</span></div>
+                    <div style="color: #94A3B8; font-size: 0.85rem; margin: 4px 0 8px 0;">{r.get('description') or 'No description provided.'}</div>
+                    <div style="font-size: 0.82rem; color: #CBD5E1;">⭐ {r.get('stargazers_count', 0)} stars • 🎫 {r.get('open_issues_count', 0)} open issues</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            if st.button(f"🚀 Analyze {r['name']}", key=f"btn_analyze_user_{r['full_name']}", use_container_width=True):
+                st.session_state.repo_url = r["full_name"]
+                st.session_state.mode = "Live GitHub Repository"
+                st.session_state.suggested_user_repos = []
+                run_live_analysis(r["full_name"], st.session_state.github_token)
+                st.rerun()
+    st.markdown("---")
 
 metadata = st.session_state.repo_metadata or {}
 analysis = st.session_state.repo_analysis or {}
 ranked_issues: List[RankedIssue] = st.session_state.ranked_issues
 
-# Repository Summary Card
+# Repository Summary Header Card
 with st.container():
     st.markdown(
         f"""
-        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 14px; padding: 20px 24px; margin-bottom: 24px;">
+        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 14px; padding: 20px 24px; margin-top: 16px; margin-bottom: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px;">
                 <h2 style="margin: 0; color: #F8FAFC;">📦 {metadata.get('full_name', 'Repository')}</h2>
                 <span style="color: #60A5FA; font-weight: 600; font-size: 0.95rem;">Primary Language: <b>{metadata.get('language', 'Unknown')}</b></span>
@@ -356,7 +413,7 @@ with st.container():
         unsafe_allow_html=True,
     )
 
-# Quick stats columns
+# Quick stats metrics
 col1, col2, col3, col4 = st.columns(4)
 health_score = (analysis.get("health") or {}).get("health_score", 70)
 beginner_count = sum(1 for i in ranked_issues if i.beginner_friendly or i.difficulty == "Beginner")
@@ -415,7 +472,7 @@ if missing:
         for m in missing:
             st.markdown(f"- ⚠️ {m}")
 
-# Search & Filters
+# Search & Filters Toolbar
 st.subheader("🎯 Recommended Issues for You")
 col_search, col_diff, col_sort = st.columns([4, 3, 3])
 
@@ -431,10 +488,24 @@ with col_diff:
 with col_sort:
     sort_choice = st.selectbox(
         "Sort Issues by:",
-        ["Match Score (Highest first)", "Estimated Effort (Lowest first)", "Most Discussed", "Recently Updated"],
+        ["Match Score (Highest first)", "Fewest Comments (Unclaimed first)", "Estimated Effort (Lowest first)", "Most Discussed", "Recently Updated"],
     )
 
-# Filter issues
+col_min_score, col_save_all = st.columns([3, 1])
+with col_min_score:
+    min_score = st.slider("Minimum Match Score Filter:", min_value=0, max_value=100, value=0, format="%d%%")
+with col_save_all:
+    st.write("")
+    st.write("")
+    if st.button("⭐ Shortlist All Visible", use_container_width=True):
+        count_saved = 0
+        for item in ranked_issues:
+            if st.session_state.shortlist_manager.add(item):
+                count_saved += 1
+        st.toast(f"Bookmarked {count_saved} visible issues to your shortlist! ⭐")
+        st.rerun()
+
+# Apply Filters
 filtered_issues = list(ranked_issues)
 
 if search_query:
@@ -446,9 +517,14 @@ if search_query:
 if diff_filter != "All Difficulties":
     filtered_issues = [i for i in filtered_issues if i.difficulty.lower() == diff_filter.lower()]
 
+if min_score > 0:
+    filtered_issues = [i for i in filtered_issues if i.match_score_percent >= min_score]
+
 # Sort issues
 if sort_choice == "Match Score (Highest first)":
     filtered_issues.sort(key=lambda x: x.match_score, reverse=True)
+elif sort_choice == "Fewest Comments (Unclaimed first)":
+    filtered_issues.sort(key=lambda x: x.comments_count)
 elif sort_choice == "Estimated Effort (Lowest first)":
     order = {"Beginner": 1, "Difficulty uncertain": 2, "Intermediate": 3, "Advanced": 4}
     filtered_issues.sort(key=lambda x: order.get(x.difficulty, 5))
@@ -459,7 +535,7 @@ elif sort_choice == "Recently Updated":
 
 # Render Issue Cards
 if not filtered_issues:
-    st.info("No open issues match your current filters. Try relaxing the difficulty or search criteria.")
+    st.info("No open issues match your current filters. Try relaxing the difficulty or score slider.")
 else:
     st.caption(f"Displaying **{len(filtered_issues)}** issues matching your criteria:")
 

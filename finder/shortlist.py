@@ -71,6 +71,14 @@ class ShortlistManager:
         """Return all shortlisted items."""
         return list(self._items.values())
 
+    def count(self) -> int:
+        """Return number of shortlisted items."""
+        return len(self._items)
+
+    def __len__(self) -> int:
+        """Return number of shortlisted items."""
+        return len(self._items)
+
     def to_json(self) -> str:
         """Export shortlist as a formatted JSON string."""
         return json.dumps(self.list_all(), indent=2)

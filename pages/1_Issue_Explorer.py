@@ -59,6 +59,12 @@ with st.sidebar:
     # Beginner friendly only checkbox
     only_beginner = st.checkbox("Show only 'Good First Issues' / Beginner", value=False)
 
+    # Min match score slider
+    min_score = st.slider("Minimum Match Score:", min_value=0, max_value=100, value=0, format="%d%%")
+
+    # Unclaimed checkbox
+    unclaimed_only = st.checkbox("Show only fresh/unclaimed (≤ 2 comments)", value=False)
+
     # View Mode toggle
     view_mode = st.radio("Display View:", ["Card Cards View", "Structured Table View"])
 
@@ -87,7 +93,50 @@ if selected_labels:
 if only_beginner:
     filtered = [i for i in filtered if i.beginner_friendly or i.difficulty == "Beginner"]
 
-st.markdown(f"### Results ({len(filtered)} matching issues)")
+if unclaimed_only:
+    filtered = [i for i in filtered if i.comments_count <= 2]
+
+if min_score > 0:
+    filtered = [i for i in filtered if i.match_score_percent >= min_score]
+
+col_header, col_actions_csv, col_actions_save = st.columns([4, 2, 2])
+with col_header:
+    st.markdown(f"### Results ({len(filtered)} matching issues)")
+
+with col_actions_csv:
+    if filtered:
+        # Generate CSV bytes
+        export_df = pd.DataFrame([
+            {
+                "Issue #": i.number,
+                "Title": i.title,
+                "Difficulty": i.difficulty,
+                "Match Score %": i.match_score_percent,
+                "Estimated Effort": i.estimated_effort,
+                "Technologies": ", ".join(i.technologies_involved),
+                "Missing Skills": ", ".join(i.missing_skills),
+                "Comments": i.comments_count,
+                "URL": i.html_url,
+            }
+            for i in filtered
+        ])
+        csv_bytes = export_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="📥 Export Filtered CSV",
+            data=csv_bytes,
+            file_name=f"filtered_issues_{metadata.get('name', 'repo')}.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+with col_actions_save:
+    if filtered and st.button("⭐ Bookmark All Visible", use_container_width=True):
+        count_saved = 0
+        for i in filtered:
+            if st.session_state.shortlist_manager.add(i):
+                count_saved += 1
+        st.toast(f"Bookmarked {count_saved} issues! ⭐")
+        st.rerun()
 
 if not filtered:
     st.warning("No issues found matching the selected filters. Please broaden your criteria.")
@@ -100,7 +149,7 @@ elif view_mode == "Structured Table View":
                 "Issue #": i.number,
                 "Title": i.title,
                 "Difficulty": i.difficulty,
-                "Match Score": f"{i.match_score_percent}%",
+                "Match Score": i.match_score_percent,
                 "Estimated Effort": i.estimated_effort.split("(")[0].strip(),
                 "Technologies": ", ".join(i.technologies_involved) or "General",
                 "Comments": i.comments_count,

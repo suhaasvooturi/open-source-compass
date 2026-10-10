@@ -63,9 +63,19 @@ else:
 
     st.markdown("---")
 
+    if "issue_statuses" not in st.session_state:
+        st.session_state.issue_statuses = {}
+    if "issue_notes" not in st.session_state:
+        st.session_state.issue_notes = {}
+
+    status_options = ["📌 Bookmarked", "🔍 Investigating Code", "🛠️ Working on Fix", "🚀 PR Submitted", "🎉 Merged!"]
+
     # Display items
     for item in saved_items:
         num = item["number"]
+        cur_status = st.session_state.issue_statuses.get(num, "📌 Bookmarked")
+        cur_notes = st.session_state.issue_notes.get(num, "")
+
         col_content, col_actions = st.columns([5, 2])
 
         with col_content:
@@ -81,14 +91,48 @@ else:
                     <h4 style="margin: 0 0 6px 0; color: #F8FAFC;">
                         <a href="{item.get('html_url')}" target="_blank" style="color: #F8FAFC; text-decoration: none;">#{num}: {item.get('title')}</a>
                     </h4>
-                    <p style="color: #94A3B8; font-size: 0.88rem; margin: 0;">⏱️ <b>Effort:</b> {item.get('estimated_effort', '')}</p>
+                    <p style="color: #94A3B8; font-size: 0.88rem; margin: 0 0 8px 0;">⏱️ <b>Effort:</b> {item.get('estimated_effort', '')}</p>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+
+            # Contributor Status & Notes
+            c_stat, c_notes = st.columns([2, 3])
+            with c_stat:
+                new_status = st.selectbox(
+                    f"Status for #{num}:",
+                    status_options,
+                    index=status_options.index(cur_status) if cur_status in status_options else 0,
+                    key=f"status_select_{num}",
+                )
+                st.session_state.issue_statuses[num] = new_status
+            with c_notes:
+                new_note = st.text_input(
+                    f"Personal notes for #{num}:",
+                    value=cur_notes,
+                    placeholder="e.g. branch fix-101, waiting for alice's reply",
+                    key=f"note_input_{num}",
+                )
+                st.session_state.issue_notes[num] = new_note
 
         with col_actions:
             st.link_button(f"🔗 Open on GitHub", item.get("html_url", "#"), use_container_width=True)
             if st.button("❌ Remove", key=f"remove_btn_{num}", use_container_width=True):
                 shortlist_manager.remove(num)
                 st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+    # Markdown export summary
+    with st.expander("📋 Copy Shortlist as Markdown Portfolio"):
+        summary_md = "## 🧭 My Open-Source Contribution Shortlist\n\n"
+        for item in saved_items:
+            n = item["number"]
+            stat = st.session_state.issue_statuses.get(n, "Bookmarked")
+            note = st.session_state.issue_notes.get(n, "")
+            summary_md += f"- [{item['title']} (#{n})]({item['html_url']}) - **Status:** {stat}"
+            if note:
+                summary_md += f" *(Notes: {note})*"
+            summary_md += "\n"
+        st.code(summary_md, language="markdown")

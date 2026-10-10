@@ -288,8 +288,8 @@ def render_issue_card(
     card_html += "</div>"
     st.markdown(card_html, unsafe_allow_html=True)
 
-    # Action buttons and expander
-    col_link, col_save, col_spacer = st.columns([2, 2, 4])
+    # Action buttons and quick skill adds
+    col_link, col_save, col_spacer = st.columns([3, 3, 2])
     with col_link:
         st.link_button(f"🔗 Open Issue #{issue.number} on GitHub", issue.html_url, use_container_width=True)
     with col_save:
@@ -299,44 +299,100 @@ def render_issue_card(
                 on_save_clicked(issue)
                 st.rerun()
 
+    # Expandable Deep-Dive Section with AI Mentor Tools
+    with st.expander(f"🔍 Deep Dive & Contributor Mentor Tools (Issue #{issue.number})"):
+        tab_why, tab_mentor, tab_git = st.tabs(["🎯 Match Reasons & Steps", "💬 Draft Maintainer Comment & PR", "💻 Git Workflow"])
 
-    # Expandable Deep-Dive Section
-    with st.expander(f"🔍 Why this matches & Preparation Checklist (Issue #{issue.number})"):
-        st.markdown("#### 🎯 Why this issue was recommended:")
-        for r in issue.match_reasons:
-            st.markdown(f"- {r}")
+        with tab_why:
+            st.markdown("#### 🎯 Why this issue was recommended:")
+            for r in issue.match_reasons:
+                st.markdown(f"- {r}")
 
-        st.markdown("#### 📊 Score Breakdown:")
-        sb = issue.score_breakdown
-        st.write(
-            f"- **Skill Overlap:** {int(sb.get('skill_overlap', 0)*100)}% | "
-            f"**Experience Fit:** {int(sb.get('experience_fit', 0)*100)}% | "
-            f"**Learning Goals:** {int(sb.get('learning_goals', 0)*100)}% | "
-            f"**Beginner Labels:** {int(sb.get('beginner_friendly_label', 0)*100)}% | "
-            f"**Semantic Similarity:** {int(sb.get('semantic_similarity', 0)*100)}%"
-        )
+            st.markdown("#### 📊 Score Breakdown:")
+            sb = issue.score_breakdown
+            st.write(
+                f"- **Skill Overlap:** {int(sb.get('skill_overlap', 0)*100)}% | "
+                f"**Experience Fit:** {int(sb.get('experience_fit', 0)*100)}% | "
+                f"**Learning Goals:** {int(sb.get('learning_goals', 0)*100)}% | "
+                f"**Beginner Labels:** {int(sb.get('beginner_friendly_label', 0)*100)}% | "
+                f"**Semantic Similarity:** {int(sb.get('semantic_similarity', 0)*100)}%"
+            )
 
-        st.markdown("#### 🏷️ Classification Evidence:")
-        for ev in issue.difficulty_evidence:
-            st.markdown(f"- *{ev}*")
+            st.markdown("#### 🏷️ Classification Evidence:")
+            for ev in issue.difficulty_evidence:
+                st.markdown(f"- *{ev}*")
 
-        if explainer_func:
-            with st.spinner("Loading technical explanation..."):
-                explanation = explainer_func(issue)
-                st.markdown("---")
-                st.markdown(f"**Issue Summary:** {explanation.get('summary', '')}")
-                if explanation.get("likely_files_to_inspect"):
-                    st.markdown("**Suggested Files to Inspect:**")
-                    for f in explanation["likely_files_to_inspect"]:
-                        st.markdown(f"- `{f}`")
-                if explanation.get("implementation_steps"):
-                    st.markdown("**Recommended Implementation Steps:**")
-                    for s in explanation["implementation_steps"]:
-                        st.markdown(f"- {s}")
-        else:
-            st.markdown("#### 📋 Recommended Preparation Steps:")
-            for step in issue.preparation_steps:
-                st.markdown(f"- {step}")
+            if explainer_func:
+                with st.spinner("Loading technical explanation..."):
+                    explanation = explainer_func(issue)
+                    st.markdown("---")
+                    st.markdown(f"**Issue Summary:** {explanation.get('summary', '')}")
+                    if explanation.get("likely_files_to_inspect"):
+                        st.markdown("**Suggested Files to Inspect:**")
+                        for f in explanation["likely_files_to_inspect"]:
+                            st.markdown(f"- `{f}`")
+                    if explanation.get("implementation_steps"):
+                        st.markdown("**Recommended Implementation Steps:**")
+                        for s in explanation["implementation_steps"]:
+                            st.markdown(f"- {s}")
+            else:
+                st.markdown("#### 📋 Recommended Preparation Steps:")
+                for step in issue.preparation_steps:
+                    st.markdown(f"- {step}")
+
+        with tab_mentor:
+            repo_name = issue.repository_full_name.split()[0]
+            techs_str = ", ".join(issue.technologies_involved) or "the codebase"
+
+            st.markdown("##### 💬 Draft First-Timer Contributor Comment (Click to Copy):")
+            st.caption("Post this polite comment on the GitHub issue to introduce yourself and claim the issue:")
+            comment_template = f"""Hi @maintainers! 👋 
+
+I would love to work on this issue as a first-time contributor. I have reviewed the description and see that it touches {techs_str}.
+
+Could you please confirm if this issue is currently open to be picked up? If there are any specific guidelines or test commands I should verify, please let me know. 
+
+Thank you!"""
+            st.code(comment_template, language="markdown")
+
+            st.markdown("##### 📝 Draft Pull Request Description:")
+            st.caption("Copy this template into your GitHub Pull Request when your code is ready:")
+            pr_template = f"""## Description
+Resolves #{issue.number} - {issue.title}
+
+## Summary of Changes
+- Implemented fix for the issue described in #{issue.number}.
+- Verified existing automated test suite passes.
+- Added regression tests covering this behavior.
+
+## Checklist
+- [x] My code follows the project's coding style guidelines.
+- [x] I have performed a self-review of my own code.
+- [x] All automated tests pass locally.
+- [x] Documentation has been updated where appropriate."""
+            st.code(pr_template, language="markdown")
+
+        with tab_git:
+            repo_clean = issue.repository_full_name.split()[0].replace("demo/", "")
+            git_commands = f"""# 1. Fork the repo on GitHub, then clone your fork:
+git clone https://github.com/your-username/{repo_clean.split('/')[-1]}.git
+cd {repo_clean.split('/')[-1]}
+
+# 2. Add upstream remote to stay synced:
+git remote add upstream https://github.com/{repo_clean}.git
+git fetch upstream
+
+# 3. Create a dedicated feature branch for Issue #{issue.number}:
+git checkout -b fix-issue-{issue.number}
+
+# 4. Make your code edits and verify tests:
+pytest tests/ -v  # or npm test / cargo test depending on stack
+
+# 5. Commit and push to your fork:
+git add .
+git commit -m "fix: resolve issue #{issue.number} - {issue.title[:40]}"
+git push -u origin fix-issue-{issue.number}"""
+            st.code(git_commands, language="bash")
 
 
 def render_sidebar_nav() -> None:

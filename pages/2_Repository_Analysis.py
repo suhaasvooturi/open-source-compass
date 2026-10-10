@@ -34,7 +34,7 @@ with st.sidebar:
     render_sidebar_nav()
 
 
-tab_arch, tab_health, tab_guide = st.tabs(["🏗️ Architecture & Stack", "🩺 Health Indicators", "📖 Contribution Guide Reader"])
+tab_arch, tab_health, tab_guide, tab_script = st.tabs(["🏗️ Architecture & Stack", "🩺 Health Indicators", "📖 Contribution Guide Reader", "⚡ Local Setup Script"])
 
 # -------------------------------------------------------------
 # TAB 1: Architecture & Stack
@@ -140,3 +140,76 @@ with tab_guide:
     if guide_info.get("raw_snippet"):
         with st.expander("📄 View Guide Raw Excerpt"):
             st.markdown(guide_info["raw_snippet"])
+
+# -------------------------------------------------------------
+# TAB 4: Automated Setup Script
+# -------------------------------------------------------------
+with tab_script:
+    st.subheader("⚡ Automated Local Development Setup")
+    st.caption("Generated environment bootstrap instructions based on detected languages and build tools.")
+
+    repo_slug = metadata.get("name", "repo")
+    html_url = metadata.get("html_url", "https://github.com/owner/repo")
+    lang = (metadata.get("language") or "Python").lower()
+    build_files = analysis.get("detected_build_files", [])
+
+    script_sh = f"""#!/usr/bin/env bash
+# OpenSource Compass Bootstrap Script for {metadata.get('full_name', 'repository')}
+set -e
+
+echo "🧭 Setting up local environment for {repo_slug}..."
+
+# 1. Clone your fork
+git clone {html_url}.git
+cd {repo_slug}
+"""
+
+    if "python" in lang or any("py" in f for f in build_files):
+        script_sh += """
+# 2. Set up Python virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 3. Install dependencies
+if [ -f "requirements-dev.txt" ]; then
+    pip install -r requirements-dev.txt
+elif [ -f "requirements.txt" ]; then
+    pip install -r requirements.txt
+elif [ -f "pyproject.toml" ]; then
+    pip install -e ".[dev]" || pip install -e .
+fi
+
+# 4. Verify test suite
+pytest tests/ -v || python -m unittest
+"""
+    elif "javascript" in lang or "typescript" in lang or "package.json" in build_files:
+        script_sh += """
+# 2. Install Node dependencies
+npm install  # or yarn / pnpm
+
+# 3. Verify test suite
+npm test
+"""
+    elif "rust" in lang or "Cargo.toml" in build_files:
+        script_sh += """
+# 2. Build and run tests with Cargo
+cargo test
+"""
+    else:
+        script_sh += """
+# 2. Check README for specific dependency managers
+git status
+"""
+
+    script_sh += """
+echo "✅ Environment configured successfully! Happy hacking!"
+"""
+
+    st.code(script_sh, language="bash")
+    st.download_button(
+        label="📥 Download setup.sh Script",
+        data=script_sh,
+        file_name=f"setup_{repo_slug}.sh",
+        mime="text/x-sh",
+        use_container_width=True,
+    )
