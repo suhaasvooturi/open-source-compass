@@ -76,6 +76,9 @@ def init_session_state() -> None:
     if "last_analyzed_target" not in st.session_state:
         st.session_state.last_analyzed_target = ""
 
+    if "suggested_user_repos" not in st.session_state:
+        st.session_state.suggested_user_repos = []
+
 
 def load_demo_analysis(demo_key: str) -> None:
     """Load and process synthetic demo repository data."""

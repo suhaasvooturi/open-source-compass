@@ -24,6 +24,7 @@ from finder.github_api import (
     NetworkConnectionError,
     RateLimitExceededError,
     RepositoryNotFoundError,
+    UserProfileURLError,
     parse_github_url,
 )
 from finder.ranking import RankedIssue, RecommendationEngine
@@ -53,13 +54,34 @@ explainer = LLMExplainer()
 
 def run_live_analysis(repo_url: str, token: str) -> None:
     """Fetch and analyze a live public GitHub repository."""
-    try:
-        owner, repo = parse_github_url(repo_url)
-    except InvalidRepositoryURLError as e:
-        st.error(f"❌ Invalid Repository URL: {str(e)}")
+    if not repo_url or not repo_url.strip():
+        st.error("❌ Please provide a repository name or URL.")
         return
 
+    st.session_state.suggested_user_repos = []
     client = GitHubClient(token=token if token.strip() else None)
+
+    try:
+        owner, repo = parse_github_url(repo_url)
+    except UserProfileURLError as e:
+        st.warning(f"⚠️ {str(e)}")
+        with st.spinner(f"🔍 Checking public repositories for user @{e.username}..."):
+            user_repos = client.get_user_repositories(e.username)
+            if user_repos:
+                st.info(f"Found {len(user_repos)} public repositories for @{e.username}! Select one below:")
+                st.session_state.suggested_user_repos = user_repos
+            else:
+                st.error(
+                    f"No public repositories found for user '@{e.username}'. "
+                    f"Please enter in 'owner/repo' format (e.g. 'tiangolo/fastapi' or 'psf/requests')."
+                )
+        return
+    except InvalidRepositoryURLError as e:
+        st.error(
+            f"❌ Invalid Repository URL: {str(e)}\n\n"
+            f"💡 Format should be 'owner/repo' (e.g. 'tiangolo/fastapi', 'psf/requests', or 'suhaasvooturi/ai-open-source-contribution-finder')."
+        )
+        return
 
     with st.spinner(f"🔍 Connecting to GitHub API for {owner}/{repo}..."):
         try:
@@ -133,18 +155,36 @@ with st.sidebar:
             format_func=lambda x: f"📦 {x.replace('demo/', '')}",
         )
         st.session_state.selected_demo_repo = demo_choice
+        if st.button("🚀 Load Demo Issues", type="primary", use_container_width=True):
+            load_demo_analysis(st.session_state.selected_demo_repo)
+            st.rerun()
     else:
         st.session_state.repo_url = st.text_input(
             "GitHub Repository URL / Slug:",
             value=st.session_state.repo_url,
-            placeholder="e.g. psf/requests or https://github.com/tiangolo/fastapi",
+            placeholder="e.g. psf/requests, tiangolo/fastapi",
+            help="Enter in owner/repo format (e.g. psf/requests or https://github.com/tiangolo/fastapi)",
         )
-        st.session_state.github_token = st.text_input(
-            "GitHub Token (Optional):",
-            value=st.session_state.github_token,
-            type="password",
-            help="Optional. Increases GitHub rate limit from 60 to 5,000 requests/hr. No write permissions required.",
-        )
+
+        col_side1, col_side2 = st.columns([3, 1])
+        with col_side1:
+            if st.button("🚀 Analyze", type="primary", key="btn_side_analyze_top", use_container_width=True):
+                run_live_analysis(st.session_state.repo_url, st.session_state.github_token)
+                st.rerun()
+        with col_side2:
+            if st.button("🧹 Clear", key="btn_side_clear", use_container_width=True):
+                st.session_state.repo_url = ""
+                st.session_state.ranked_issues = []
+                st.session_state.suggested_user_repos = []
+                st.rerun()
+
+        with st.expander("🔑 GitHub Token (Optional)", expanded=False):
+            st.session_state.github_token = st.text_input(
+                "Personal Access Token:",
+                value=st.session_state.github_token,
+                type="password",
+                help="Optional. Increases GitHub rate limit from 60 to 5,000 requests/hr. No write permissions required.",
+            )
 
     st.markdown("---")
     st.subheader("2. Developer Profile")
@@ -189,7 +229,7 @@ with st.sidebar:
 
     # Primary Trigger
     st.markdown("---")
-    if st.button("🚀 Analyze & Discover Issues", type="primary", use_container_width=True):
+    if st.button("🚀 Re-Rank with Profile", key="btn_side_bottom", use_container_width=True):
         if "Demo" in st.session_state.mode:
             load_demo_analysis(st.session_state.selected_demo_repo)
             st.rerun()
@@ -216,13 +256,92 @@ with st.sidebar:
 # ==========================================
 render_hero_banner()
 
-# Ensure we have data loaded initially
+# Landing view if no issues are loaded yet
 if not st.session_state.ranked_issues:
     if "Demo" in st.session_state.mode:
         load_demo_analysis(st.session_state.selected_demo_repo)
+        st.rerun()
     else:
-        st.info("👈 Enter a GitHub repository URL in the sidebar and click **'Analyze & Discover Issues'** to begin.")
+        st.markdown(
+            """
+            <div style="background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 16px; padding: 24px 28px; margin-bottom: 24px;">
+                <h3 style="margin-top: 0; color: #F8FAFC;">🔍 Enter a Public GitHub Repository</h3>
+                <p style="color: #94A3B8; font-size: 0.95rem; margin-bottom: 0;">
+                    Type any public GitHub repository (e.g. <code>tiangolo/fastapi</code> or <code>psf/requests</code>) to analyze its architecture, classify open issues, and match them with your skills.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # Center input box and button
+        col_inp, col_btn = st.columns([4, 1])
+        with col_inp:
+            main_input_val = st.text_input(
+                "Enter repository URL or slug:",
+                value=st.session_state.repo_url,
+                placeholder="e.g. psf/requests, tiangolo/fastapi, or pallets/flask",
+                label_visibility="collapsed",
+                key="main_repo_input",
+            )
+        with col_btn:
+            if st.button("🚀 Analyze Repository", type="primary", key="main_analyze_btn", use_container_width=True):
+                st.session_state.repo_url = main_input_val
+                run_live_analysis(main_input_val, st.session_state.github_token)
+                st.rerun()
+
+        # Display discovered public repos if a user profile was entered
+        if getattr(st.session_state, "suggested_user_repos", None):
+            st.markdown("### 📦 Public Repositories Found:")
+            for r in st.session_state.suggested_user_repos[:6]:
+                col_r_info, col_r_btn = st.columns([4, 1])
+                with col_r_info:
+                    st.markdown(
+                        f"**[{r['full_name']}](https://github.com/{r['full_name']})** (`{r['language']}`) — "
+                        f"⭐ {r['stargazers_count']} | 🎫 {r['open_issues_count']} issues\n\n"
+                        f"<small style='color: #94A3B8;'>{r['description']}</small>",
+                        unsafe_allow_html=True,
+                    )
+                with col_r_btn:
+                    if st.button(f"Analyze {r['name']}", key=f"btn_pick_{r['full_name']}", use_container_width=True):
+                        st.session_state.repo_url = r["full_name"]
+                        run_live_analysis(r["full_name"], st.session_state.github_token)
+                        st.rerun()
+            st.markdown("---")
+
+        # Quick start popular repositories
+        st.markdown("#### 💡 Quick-Start with Popular Beginner-Friendly Repositories:")
+        col_q1, col_q2, col_q3, col_q4, col_q5 = st.columns(5)
+        with col_q1:
+            if st.button("🐍 psf/requests", use_container_width=True):
+                st.session_state.repo_url = "psf/requests"
+                run_live_analysis("psf/requests", st.session_state.github_token)
+                st.rerun()
+        with col_q2:
+            if st.button("⚡ tiangolo/fastapi", use_container_width=True):
+                st.session_state.repo_url = "tiangolo/fastapi"
+                run_live_analysis("tiangolo/fastapi", st.session_state.github_token)
+                st.rerun()
+        with col_q3:
+            if st.button("🌶️ pallets/flask", use_container_width=True):
+                st.session_state.repo_url = "pallets/flask"
+                run_live_analysis("pallets/flask", st.session_state.github_token)
+                st.rerun()
+        with col_q4:
+            if st.button("⚛️ facebook/react", use_container_width=True):
+                st.session_state.repo_url = "facebook/react"
+                run_live_analysis("facebook/react", st.session_state.github_token)
+                st.rerun()
+        with col_q5:
+            if st.button("🧭 Our Repository", use_container_width=True):
+                st.session_state.repo_url = "suhaasvooturi/ai-open-source-contribution-finder"
+                run_live_analysis("suhaasvooturi/ai-open-source-contribution-finder", st.session_state.github_token)
+                st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.info("💡 You can also switch to **'Offline Demo Mode'** in the sidebar at any time to explore synthetic issues without hitting GitHub API limits.")
         st.stop()
+
 
 metadata = st.session_state.repo_metadata or {}
 analysis = st.session_state.repo_analysis or {}

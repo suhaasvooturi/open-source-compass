@@ -11,6 +11,7 @@ from finder.github_api import (
     NetworkConnectionError,
     RateLimitExceededError,
     RepositoryNotFoundError,
+    UserProfileURLError,
     parse_github_url,
 )
 
@@ -34,11 +35,13 @@ def test_parse_github_url_invalid():
     with pytest.raises(InvalidRepositoryURLError):
         parse_github_url("https://gitlab.com/foo/bar")
 
-    with pytest.raises(InvalidRepositoryURLError):
+    with pytest.raises(UserProfileURLError) as excinfo:
         parse_github_url("https://github.com/onlyowner")
+    assert excinfo.value.username == "onlyowner"
 
-    with pytest.raises(InvalidRepositoryURLError):
-        parse_github_url("just-a-string")
+    with pytest.raises(UserProfileURLError) as excinfo:
+        parse_github_url("just-a-username")
+    assert excinfo.value.username == "just-a-username"
 
 
 @patch("finder.github_api.requests.get")

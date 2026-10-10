@@ -43,6 +43,17 @@ class InvalidRepositoryURLError(ValueError):
     pass
 
 
+class UserProfileURLError(InvalidRepositoryURLError):
+    """Raised when a user profile URL or single username was entered instead of a repository URL."""
+
+    def __init__(self, username: str):
+        self.username = username
+        super().__init__(
+            f"Input '{username}' appears to be a user profile rather than a repository. "
+            f"Please provide an 'owner/repository' format."
+        )
+
+
 def parse_github_url(url_or_slug: str) -> Tuple[str, str]:
     """Parse a GitHub repository URL or slug into (owner, repo).
 
@@ -66,6 +77,10 @@ def parse_github_url(url_or_slug: str) -> Tuple[str, str]:
             repo = repo[:-4]
         return owner, repo
 
+    # If user entered just a username slug without slash
+    if re.match(r"^[A-Za-z0-9_.-]+$", cleaned):
+        raise UserProfileURLError(cleaned)
+
     # Add scheme if missing but starts with github.com
     if cleaned.startswith("github.com/"):
         cleaned = "https://" + cleaned
@@ -80,6 +95,8 @@ def parse_github_url(url_or_slug: str) -> Tuple[str, str]:
         )
 
     parts = [p for p in parsed.path.strip("/").split("/") if p]
+    if len(parts) == 1:
+        raise UserProfileURLError(parts[0])
     if len(parts) < 2:
         raise InvalidRepositoryURLError(
             f"URL must contain both owner and repository name: '{url_or_slug}'"
@@ -312,3 +329,30 @@ class GitHubClient:
             return []
         except Exception:
             return []
+
+    def get_user_repositories(self, username: str, max_count: int = 15) -> List[Dict[str, Any]]:
+        """Fetch public repositories for a given user or organization."""
+        try:
+            data = self._request(
+                f"/users/{username}/repos",
+                params={"sort": "updated", "per_page": min(max_count, 30), "type": "owner"},
+            )
+            if isinstance(data, list):
+                return [
+                    {
+                        "name": r.get("name", ""),
+                        "full_name": r.get("full_name", f"{username}/{r.get('name')}"),
+                        "description": r.get("description") or "No description provided",
+                        "language": r.get("language") or "Unspecified",
+                        "stargazers_count": r.get("stargazers_count", 0),
+                        "open_issues_count": r.get("open_issues_count", 0),
+                        "html_url": r.get("html_url", ""),
+                        "fork": r.get("fork", False),
+                    }
+                    for r in data
+                    if not r.get("fork") and r.get("name")
+                ]
+            return []
+        except Exception:
+            return []
+
